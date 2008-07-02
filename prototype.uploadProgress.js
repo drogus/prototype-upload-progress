@@ -9,6 +9,21 @@
  */
 var UploadProgressMethods = {
 	uploadProgress: function(element, options) {
+		options == options || {};
+		options = Object.extend({
+			interval: 2000,
+			progressBar: "progressbar",
+			progressUrl: "/progress",
+			start: function() {},
+			uploading: function() {},
+			complete: function() {},
+			success: function() {},
+			error: function() {},
+			uploadProgressPath: '/javascripts/prototype.js',
+			prototypePath: '/javascripts/prototype.uploadProgress.js',
+                               timer: ""
+		}, options);
+		
 		/* tried to add iframe after submit (to not always load it) but it won't work. 
 		safari can't get scripts properly while submitting files */
 		if(Prototype.Browser.WebKit && top.document == document) {
@@ -40,22 +55,7 @@ var UploadProgressMethods = {
 	
 		Event.observe(element, 'submit', function() {
 			var uuid = "";
-			for (i = 0; i < 32; i++) { uuid += Math.floor(Math.random() * 16).toString(16); }	
-			
-			options == options || {};
-			options = Object.extend({
-				interval: 2000,
-				progressBar: "progressbar",
-				progressUrl: "/progress",
-				start: function() {},
-				uploading: function() {},
-				complete: function() {},
-				success: function() {},
-				error: function() {},
-				uploadProgressPath: '/javascripts/prototype.js',
-				prototypePath: '/javascripts/prototype.uploadProgress.js',
-                                timer: ""
-			}, options);
+			for (i = 0; i < 32; i++) { uuid += Math.floor(Math.random() * 16).toString(16); }
 			
 			options.uuid = uuid;
 			/* start callback */
