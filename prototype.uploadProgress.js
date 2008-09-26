@@ -11,9 +11,14 @@ var UploadProgressMethods = {
 	uploadProgress: function(element, options) {
 		options == options || {};
 		options = Object.extend({
-			interval: 2000,
+			client_interval: 500,
+      interval:10000,
 			progressBar: "progressbar",
 			progressUrl: "/progress",
+      previous_percent: 0,
+      previous_time: 0,
+      current_percent: 0,
+      rate: 0,
 			start: function() {},
 			uploading: function() {},
 			complete: function() {},
@@ -21,7 +26,8 @@ var UploadProgressMethods = {
 			error: function() {},
 			uploadProgressPath: '/javascripts/prototype.js',
 			prototypePath: '/javascripts/prototype.uploadProgress.js',
-                               timer: ""
+      server_timer: "",
+      client_timer: ""
 		}, options);
 		
 		/* tried to add iframe after submit (to not always load it) but it won't work. 
@@ -70,7 +76,9 @@ var UploadProgressMethods = {
 			  $(this).writeAttribute("action", $(this).readAttribute("action") + "?X-Progress-ID=" + uuid);
 			}
 			var uploadProgress = Prototype.Browser.WebKit ? progressFrame.Prototype.uploadProgress : Prototype.uploadProgress;
-			options.timer = window.setInterval(function() { uploadProgress(this, options) }, options.interval);
+      var uploadMovement = Prototype.Browser.WebKit ? progressFrame.Prototype.uploadMovement : Prototype.uploadMovement;
+			options.server_timer = window.setInterval(function() { uploadProgress(this, options) }, options.interval);
+      options.client_timer = window.setInterval(function() { uploadMovement(this, options) {, options.client_interval);
 		});
 	}
 };
@@ -78,21 +86,35 @@ var UploadProgressMethods = {
 Element.addMethods(UploadProgressMethods);
 
 PrototypeUploadProgressMethods = {
+  uploadMovement: function(element, options) {
+    if (upload_state == 'done' || options.current_percent > 100) {
+      window.clearTimeout(options.client_timer);
+    } else {
+      options.current_percent = options.current_percent + options.rate
+      var bar = Prototype.Browser.WebKit ? parent.document.getElementById(options.progressBar) : $(options.progressBar);
+      bar.setStyle({width: Math.floor(options.current_percent) + '%'});
+    }
+  }
+      
 	uploadProgress: function(element, options) {
 		new Ajax.Request(options.progressUrl, {
 			method: 'get',
 			parameters: 'X-Progress-ID='+ options.uuid,
 			onSuccess: function(xhr){
 				var upload = xhr.responseText.evalJSON();
+        var current_time = new Date();
+        var miliseconds = current_time.getTime();
 				upload.percents = Math.floor((upload.received / upload.size)*100);
 				if (upload.state == 'uploading') {
-					var bar = Prototype.Browser.WebKit ? parent.document.getElementById(options.progressBar) : $(options.progressBar);
-              				bar.setStyle({width: Math.floor(upload.percents) + '%'});
-					options.uploading(upload);
+          if (miliseconds - previous_time !=0 && (100 - upload.percents) !=0) {
+            options.rate = (upload.percents - options.previous_percent) * options.client_interval / (miliseconds - options.previous_time) * ( (100-options.current_percent) / (100 - upload.percents) )
+            options.previous_time = miliseconds;
+            options.previous_percent = upload.percents;
+          }
 				}
 				/* we are done, stop the interval */
 				if (upload.state == 'done' || upload.state == 'error') {
-					window.clearTimeout(options.timer);
+					window.clearTimeout(options.server_timer);
 					options.complete(upload);
 				}
 				
